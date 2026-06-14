@@ -2,207 +2,460 @@
 import Layout from '../layouts/Layout.astro';
 import { safeFetch } from '../lib/safeFetch';
 
+// Описание интерфейсов в соответствии с моделями C#
 interface Pizza {
   id: number;
-  name: string;
-  description: string;
+  name: string | null;
   price: number;
-}
-interface Drink {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-}
-interface OrderItem {
-  id: number;
-  orderId: number;
-  pizzaId: number;
-  quantity: number;
-  price: number;
-}     
-interface Order {
-  id: number;
-  customerId: number;
-  date: string;
-  status: string;
-  total: number;
-  items: OrderItem[];
-} 
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  error?: string;
-}
-interface ApiError {
-  success: boolean;
-  error: string;
-}
-interface ApiResponseWithError<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-interface FetchPizzasResponse extends ApiResponse<Pizza[]> {}
-interface FetchDrinksResponse extends ApiResponse<Drink[]> {}
-interface FetchOrdersResponse extends ApiResponse<Order[]> {}       
-interface FetchErrorResponse extends ApiError {}
-interface FetchPizzasResult extends ApiResponseWithError<Pizza[]> {}
-interface FetchDrinksResult extends ApiResponseWithError<Drink[]> {}
-interface FetchOrdersResult extends ApiResponseWithError<Order[]> {}    
-interface FetchPizzasOptions {
-  signal?: AbortSignal;
-}
-interface FetchDrinksOptions {
-  signal?: AbortSignal;
-}
-interface FetchOrdersOptions {
-  signal?: AbortSignal;
-}   
-interface ApiClient {
-  fetchPizzas(options?: FetchPizzasOptions): Promise<FetchPizzasResult>;
-  fetchDrinks(options?: FetchDrinksOptions): Promise<FetchDrinksResult>;
-  fetchOrders(options?: FetchOrdersOptions): Promise<FetchOrdersResult>;
-}
-interface ApiClientConfig {
-  baseUrl: string;
-  timeout?: number;
-}
-interface Pizza {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
+  description: string | null;
 }
 
 interface Drink {
   id: number;
-  name: string;
-  description: string;
+  name: string | null;
   price: number;
+  description: string | null;
 }
 
-interface OrderItem {
-  id: number;
-  orderId: number;
-  pizzaId: number;
-  quantity: number;
-  price: number;
-}
-
-interface Order {
-  id: number;
-  customerId: number;
-  date: string;
-  status: string;
-  total: number;
-  items: OrderItem[];
-}
-
-// Simple server-side fetch helpers
-async function fetchPizzas(): Promise<Pizza[]> {
+// Первоначальный серверный сбор данных (SSR)
+async function getInitialData() {
+  let pizzas: Pizza[] = [];
+  let drinks: Drink[] = [];
   try {
-    const res = await safeFetch('/Pizzas');
-    if (!res.ok) return [];
-    return (await res.json()) as Pizza[];
-  } catch {
-    return [];
+    const pRes = await safeFetch('/api/Pizzas');
+    if (pRes.ok) pizzas = await pRes.json();
+    
+    const dRes = await safeFetch('/api/Drinks');
+    if (dRes.ok) drinks = await dRes.json();
+  } catch (e) {
+    console.error("Ошибка первичного получения данных на сервере:", e);
   }
+  return { pizzas, drinks };
 }
 
-async function fetchDrinks(): Promise<Drink[]> {
-  try {
-    const res = await safeFetch('/Drinks');
-    if (!res.ok) return [];
-    return (await res.json()) as Drink[];
-  } catch {
-    return [];
-  }
-}
-
-async function fetchOrders(): Promise<Order[]> {
-  try {
-    const res = await safeFetch('/Orders');
-    if (!res.ok) return [];
-    return (await res.json()) as Order[];
-  } catch {
-    return [];
-  }
-}
-
-const pizzas: Pizza[] = await fetchPizzas();
-const drinks: Drink[] = await fetchDrinks();
-const orders: Order[] = await fetchOrders();
+const { pizzas, drinks } = await getInitialData();
 ---
 
-<Layout title="Премиум Пицца & Лимонады">
-  <!-- Hero -->
-  <section class="hero hero-oven" role="region" aria-label="Пицца премиум‑класса">
-    <div class="overlay"></div>
-    <div class="container hero-inner">
-      <h1 class="display">Пицца премиум‑класса на итальянском оборудовании</h1>
-      <p class="lead">Искусство вкуса, свежие ингредиенты и быстрый сервис.</p>
-      <a href="#configurator" class="cta btn-primary" aria-label="Заказать сейчас">Заказать сейчас</a>
+<Layout title="Панель администратора | Aziad">
+  <main class="admin-dashboard container">
+    <header class="dashboard-header">
+      <div>
+        <h1 class="display">Управление Меню Aziad</h1>
+        <p class="lead">Полный цикл CRUD операций для пиццы и напитков (Синхронизация с С# бэкендом)</p>
+      </div>
+      <a href="/" class="btn-secondary">← Вернуться на сайт</a>
+    </header>
+
+    <div class="dashboard-grid">
+      <section class="admin-card control-panel-card" aria-label="Добавление позиций">
+        <h2>Добавить новую позицию</h2>
+        <form id="createItemForm" class="crud-form">
+          <div class="form-group">
+            <label for="itemTarget">Тип номенклатуры</label>
+            <select id="itemTarget" required>
+              <option value="Pizzas">Пицца</option>
+              <option value="Drinks">Напиток</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="itemName">Название</label>
+            <input type="text" id="itemName" required placeholder="Например: Маргарита Премиум" />
+          </div>
+
+          <div class="form-group">
+            <label for="itemPrice">Цена (₸)</label>
+            <input type="number" id="itemPrice" required min="0" placeholder="Цена в тенге" />
+          </div>
+
+          <div class="form-group">
+            <label for="itemDescription">Описание</label>
+            <textarea id="itemDescription" rows="3" placeholder="Состав, объем или особенности приготовления..."></textarea>
+          </div>
+
+          <button type="submit" class="btn-primary w-full">Сохранить в базу (POST)</button>
+        </form>
+      </section>
+
+      <div class="tables-container">
+        <section class="admin-card table-card" aria-label="Список пицц">
+          <div class="card-header-inline">
+            <h2>Пиццы (`GET /api/Pizzas`)</h2>
+            <span class="badge" id="pizzaCount">{pizzas.length}</span>
+          </div>
+          <div class="table-responsive">
+            <table class="crud-table" id="pizzasTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Название</th>
+                  <th>Цена</th>
+                  <th>Описание</th>
+                  <th class="text-right">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pizzas.map((pizza) => (
+                  <tr data-id={pizza.id} data-type="Pizzas">
+                    <td><code>#{pizza.id}</code></td>
+                    <td class="item-name-cell">{pizza.name}</td>
+                    <td class="item-price-cell"><strong>{pizza.price} ₸</strong></td>
+                    <td class="item-desc-cell">{pizza.description ?? <span class="muted">Нет</span>}</td>
+                    <td class="text-right actions-cell">
+                      <button class="btn-action btn-edit" data-id={pizza.id} data-type="Pizzas" title="Редактировать (PUT)">✏️</button>
+                      <button class="btn-action btn-delete" data-id={pizza.id} data-type="Pizzas" title="Удалить (DELETE)">🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-card table-card" aria-label="Список напитков">
+          <div class="card-header-inline">
+            <h2>Напитки (`GET /api/Drinks`)</h2>
+            <span class="badge" id="drinksCount">{drinks.length}</span>
+          </div>
+          <div class="table-responsive">
+            <table class="crud-table" id="drinksTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Название</th>
+                  <th>Цена</th>
+                  <th>Описание</th>
+                  <th class="text-right">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drinks.map((drink) => (
+                  <tr data-id={drink.id} data-type="Drinks">
+                    <td><code>#{drink.id}</code></td>
+                    <td class="item-name-cell">{drink.name}</td>
+                    <td class="item-price-cell"><strong>{drink.price} ₸</strong></td>
+                    <td class="item-desc-cell">{drink.description ?? <span class="muted">Нет</span>}</td>
+                    <td class="text-right actions-cell">
+                      <button class="btn-action btn-edit" data-id={drink.id} data-type="Drinks" title="Редактировать (PUT)">✏️</button>
+                      <button class="btn-action btn-delete" data-id={drink.id} data-type="Drinks" title="Удалить (DELETE)">🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </div>
-  </section>
 
-  <main class="container">
-    <!-- Конфигуратор -->
-    <section id="configurator" class="configurator" aria-label="Конфигуратор пиццы">
-      <!-- твой код конфигуратора -->
-    </section>
+    <div id="editModal" class="modal-overlay" hidden>
+      <div class="modal-window">
+        <h3>Редактирование позиции <span id="modalMeta"></span></h3>
+        <form id="editItemForm" class="crud-form">
+          <input type="hidden" id="editItemId" />
+          <input type="hidden" id="editItemType" />
+          
+          <div class="form-group">
+            <label for="editItemName">Название</label>
+            <input type="text" id="editItemName" required />
+          </div>
 
-    <!-- Меню: Пиццы -->
-    <section class="menu" aria-label="Меню пицц">
-      <h2 class="section-title">Наши пиццы</h2>
-      <div class="cards">
-        {pizzas.map((pizza: Pizza) => (
-          <article class="card">
-            <h3>{pizza.name}</h3>
-            <p>{pizza.description}</p>
-            <span class="price-tag">{pizza.price} ₸</span>
-          </article>
-        ))}
+          <div class="form-group">
+            <label for="editItemPrice">Цена (₸)</label>
+            <input type="number" id="editItemPrice" required min="0" />
+          </div>
+
+          <div class="form-group">
+            <label for="editItemDescription">Описание</label>
+            <textarea id="editItemDescription" rows="3"></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" id="closeModalBtn" class="btn-secondary">Отмена</button>
+            <button type="submit" class="btn-primary">Сохранить изменения (PUT)</button>
+          </div>
+        </form>
       </div>
-    </section>
-
-    <!-- Меню: Напитки -->
-    <section class="menu" aria-label="Меню напитков">
-      <h2 class="section-title">Наши напитки</h2>
-      <div class="cards">
-        {drinks.map((drink: Drink) => (
-          <article class="card">
-            <h3>{drink.name}</h3>
-            <p>{drink.description}</p>
-            <span class="price-tag">{drink.price} ₸</span>
-          </article>
-        ))}
-      </div>
-    </section>
-
-    <!-- Последние заказы -->
-    <section class="orders" aria-label="Последние заказы">
-      <h2 class="section-title">Последние заказы</h2>
-      <div class="cards">
-        {orders.slice(0, 5).map((order: Order) => (
-          <article class="card">
-            <h3>Заказ #{order.id}</h3>
-            <p>Статус: {order.status}</p>
-            <p>Итого: {order.total} ₸</p>
-            <small>{new Date(order.date).toLocaleDateString()}</small>
-            <ul>
-              {order.items.map((item: OrderItem) => (
-                <li>Пицца #{item.pizzaId}, {item.quantity} шт. — {item.price} ₸</li>
-              ))}
-            </ul>
-          </article>
-        ))}
-      </div>
-    </section>
+    </div>
   </main>
-
-  <!-- Sticky корзина -->
-  <button id="cartButton" class="cart-sticky" aria-label="Открыть корзину" title="Корзина">
-    🛒<span id="cartCount" class="cart-count">0</span>
-  </button>
 </Layout>
+
+<script type="module">
+  // Клиентский скрипт для прямой обработки CRUD-операций через fetch
+  const createForm = document.getElementById('createItemForm');
+  const editForm = document.getElementById('editItemForm');
+  const editModal = document.getElementById('editModal');
+  const closeModalBtn = document.getElementById('closeModalBtn');
+
+  // --- 1. ОПЕРАЦИЯ: POST (Создание сущности) ---
+  if (createForm) {
+    createForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const targetController = document.getElementById('itemTarget').value; // 'Pizzas' или 'Drinks'
+      const name = document.getElementById('itemName').value.trim();
+      const price = Number(document.getElementById('itemPrice').value);
+      const description = document.getElementById('itemDescription').value.trim();
+
+      // Модель совпадает со структурами C# моделей Pizza и Drink
+      const payload = { name, price, description };
+
+      try {
+        const response = await fetch(`/api/${targetController}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.status === 409) {
+          alert(`Ошибка: Позиция с именем "${name}" уже существует в базе данных.`);
+          return;
+        }
+
+        if (!response.ok) throw new Error('Не удалось выполнить POST запрос');
+
+        const createdItem = await response.json();
+        alert('Успешно добавлено в базу данных (Резюме: 201 Created)');
+        createForm.reset();
+        window.location.reload(); // Перезагружаем для обновления серверного состояния
+      } catch (err) {
+        console.error(err);
+        alert('Произошла критическая ошибка при сохранении.');
+      }
+    });
+  }
+
+  // --- 2. ОПЕРАЦИЯ: GET по ID (Получение данных для модалки) ---
+  document.addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('.btn-edit');
+    if (!editBtn) return;
+
+    const id = editBtn.dataset.id;
+    const type = editBtn.dataset.type; // 'Pizzas' или 'Drinks'
+
+    try {
+      const response = await fetch(`/api/${type}/${id}`);
+      if (!response.ok) throw new Error('Объект не найден в API');
+      
+      const item = await response.json();
+
+      // Заполняем модальное окно данными из БД
+      document.getElementById('editItemId').value = item.id;
+      document.getElementById('editItemType').value = type;
+      document.getElementById('editItemName').value = item.name || '';
+      document.getElementById('editItemPrice').value = item.price;
+      document.getElementById('editItemDescription').value = item.description || '';
+      
+      document.getElementById('modalMeta').textContent = `[${type === 'Pizzas' ? 'Пицца' : 'Напиток'} #${item.id}]`;
+      
+      if (editModal) editModal.hidden = false;
+    } catch (err) {
+      console.error(err);
+      alert('Не удалось получить актуальные данные по API.');
+    }
+  });
+
+  // --- 3. ОПЕРАЦИЯ: PUT (Обновление существующей сущности) ---
+  if (editForm) {
+    editForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const id = Number(document.getElementById('editItemId').value);
+      const type = document.getElementById('editItemType').value;
+      const name = document.getElementById('editItemName').value.trim();
+      const price = Number(document.getElementById('editItemPrice').value);
+      const description = document.getElementById('editItemDescription').value.trim();
+
+      // Важно: Поля id внутри JSON и в параметре строки URL должны строго совпадать для прохождения валидации в C#
+      const payload = { id, name, price, description };
+
+      try {
+        const response = await fetch(`/api/${type}/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error('Ошибка при выполнении PUT запроса');
+
+        // Контроллер C# возвращает NoContent() [204] — парсить json() нельзя
+        alert('Позиция успешно обновлена (Резюме: 204 NoContent)');
+        if (editModal) editModal.hidden = true;
+        window.location.reload();
+      } catch (err) {
+        console.error(err);
+        alert('Ошибка при изменении параметров.');
+      }
+    });
+  }
+
+  // --- 4. ОПЕРАЦИЯ: DELETE (Удаление сущности из БД) ---
+  document.addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.btn-delete');
+    if (!deleteBtn) return;
+
+    const id = deleteBtn.dataset.id;
+    const type = deleteBtn.dataset.type;
+    const row = deleteBtn.closest('tr');
+    const itemName = row?.querySelector('.item-name-cell')?.textContent || '';
+
+    const isConfirmed = confirm(`Вы уверены, что хотите безвозвратно удалить "${itemName}" (ID: ${id}) из базы данных?`);
+    if (!isConfirmed) return;
+
+    try {
+      const response = await fetch(`/api/${type}/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error('Не удалось выполнить DELETE запрос к бэкенду');
+
+      // Контроллер возвращает NoContent(), удаляем строку из DOM без перезагрузки страницы
+      row.remove();
+      
+      // Обновляем счетчики локально
+      const countId = type === 'Pizzas' ? 'pizzaCount' : 'drinksCount';
+      const counter = document.getElementById(countId);
+      if (counter) {
+        counter.textContent = (Number(counter.textContent) - 1).toString();
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert('Не удалось удалить объект. Возможно, он связан с другими сущностями в БД.');
+    }
+  });
+
+  // Закрытие модального окна
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', () => {
+      if (editModal) editModal.hidden = true;
+    });
+  }
+</script>
+
+<style>
+  /* Стили для премиального отображения дашборда */
+  .admin-dashboard {
+    padding-top: 2rem;
+    padding-bottom: 4rem;
+  }
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    padding-bottom: 1.5rem;
+  }
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  @media (min-width: 1024px) {
+    .dashboard-grid {
+      grid-template-columns: 320px 1fr;
+    }
+  }
+  .admin-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+    border: 1px solid #f1f5f9;
+  }
+  .control-panel-card {
+    height: fit-content;
+    position: sticky;
+    top: 2rem;
+  }
+  .card-header-inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .badge {
+    background: #eff6ff;
+    color: #2563eb;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-weight: 700;
+  }
+  .tables-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .crud-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .form-group label {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 0.625rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
+  }
+  .crud-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.95rem;
+  }
+  .crud-table th, .crud-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .crud-table th {
+    background: #f8fafc;
+    font-weight: 600;
+  }
+  .text-right { text-align: right; }
+  .w-full { width: 100%; }
+  .btn-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    font-size: 1.1rem;
+    transition: transform 0.1s ease;
+  }
+  .btn-action:hover { transform: scale(1.2); }
+  
+  /* Модальное окно */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+  }
+  .modal-window {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+</style>

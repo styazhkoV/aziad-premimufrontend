@@ -1,43 +1,137 @@
-# Astro Starter Kit: Minimal
+# 🍕 Aziad Pizza API & [Frontend](https://styazhkov.github.io/aziad-premiumfrontend.github.io/) 
 
-```sh
-npm create astro@latest -- --template minimal
+## 📑 Business Requirements (BRD)
+
+*   Онлайн‑меню с 11 видами пиццы и 6 напитками
+*   Регистрация клиентов с контактными данными
+*   Оформление заказа (пицца + напитки)
+*   Оплата через Kaspi QR, карту или наличные
+*   Отслеживание статуса заказа (Pending, Paid, Completed)
+*   История заказов для клиентов
+
+## 📑 Functional Requirements (FRD)
+
+### API эндпоинты
+
+*   `GET /api/Pizzas` — список пицц
+*   `GET /api/Drinks` — список напитков
+*   `GET /api/Orders` — список заказов
+*   `POST /api/Orders` — создание заказа
+*   `PUT /api/Orders/{id}` — обновление статуса
+*   `GET /api/Customers` — список клиентов
+*   `POST /api/Payments` — регистрация платежа
+
+### Сценарии
+
+1.  Клиент выбирает пиццу и напитки → создаётся заказ
+2.  Заказ связывается с клиентом
+3.  Оплата фиксируется в таблице `Payments`
+4.  Статус заказа обновляется и отображается в UI
+
+## 📊 ER‑диаграмм
+
+```
+entity Pizza {
+  Id : int <<PK>>
+  Name : string
+  Price : int
+  Description : string
+}
+
+entity Drink {
+  Id : int <<PK>>
+  Name : string
+  Price : int
+  Description : string
+}
+
+entity Customer {
+  Id : int <<PK>>
+  Name : string
+  Phone : string
+  Email : string
+  Address : string
+}
+
+entity Order {
+  Id : int <<PK>>
+  CustomerId : int <<FK>>
+  Date : datetime
+  Status : string
+  Total : decimal
+}
+
+entity OrderItem {
+  Id : int <<PK>>
+  OrderId : int <<FK>>
+  PizzaId : int <<FK>>
+  Quantity : int
+  Price : decimal
+}
+
+entity Payment {
+  Id : int <<PK>>
+  OrderId : int <<FK>>
+  Method : string
+  Status : string
+  TransactionId : string
+}
+
+Pizza ||--o{ OrderItem
+Drink ||--o{ OrderItem
+Customer ||--o{ Order
+Order ||--o{ OrderItem
+Order ||--o{ Payment
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## 🎨 Frontend (Astro + TypeScript)
 
-## 🚀 Project Structure
+### Страницы
 
-Inside of your Astro project, you'll see the following folders and files:
+Главная — список пицц и напитков
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+Корзина — выбранные позиции
+
+Оформление заказа — форма клиента
+
+История заказов — список прошлых заказов
+
+### Компоненты
+
+`PizzaCard.astro` — карточка пиццы
+
+`DrinkCard.astro` — карточка напитка
+
+`OrderForm.astro` — форма заказа
+
+`OrderList.astro` — список заказов
+
+### API интеграция
+
+Используется `src/lib/api.ts` с функциями:
+
+`fetchPizzas()`
+
+`fetchDrinks()`
+
+`fetchOrders()`
+
+Логгирование через `console.log` для отладки
+
+## 🚀 Установка и запуск
+
+```
+# Backend
+cd Aziad
+dotnet ef database update
+dotnet run
+
+# Frontend
+cd aziad-premimufrontend
+npm install
+npm run dev
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Swagger доступен по адресу: http://localhost:5000/swagger
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Frontend доступен по адресу: http://localhost:3000/
