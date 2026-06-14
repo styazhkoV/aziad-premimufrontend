@@ -1,4 +1,4 @@
-# 🍕 Aziad Pizza API & [Frontend](https://styazhkov.github.io/aziad-premiumfrontend.github.io/) 
+# 🍕 Aziad Pizza Project — Техническое Задание
 
 ## 📑 Business Requirements (BRD)
 
@@ -28,9 +28,10 @@
 3.  Оплата фиксируется в таблице `Payments`
 4.  Статус заказа обновляется и отображается в UI
 
-## 📊 ER‑диаграмм
+## 📊 ER‑диаграмма
 
 ```
+@startuml
 entity Pizza {
   Id : int <<PK>>
   Name : string
@@ -82,56 +83,5 @@ Drink ||--o{ OrderItem
 Customer ||--o{ Order
 Order ||--o{ OrderItem
 Order ||--o{ Payment
+@enduml
 ```
-
-## 🎨 Frontend (Astro + TypeScript)
-
-### Страницы
-
-Главная — список пицц и напитков
-
-Корзина — выбранные позиции
-
-Оформление заказа — форма клиента
-
-История заказов — список прошлых заказов
-
-### Компоненты
-
-`PizzaCard.astro` — карточка пиццы
-
-`DrinkCard.astro` — карточка напитка
-
-`OrderForm.astro` — форма заказа
-
-`OrderList.astro` — список заказов
-
-### API интеграция
-
-Используется `src/lib/api.ts` с функциями:
-
-`fetchPizzas()`
-
-`fetchDrinks()`
-
-`fetchOrders()`
-
-Логгирование через `console.log` для отладки
-
-## 🚀 Установка и запуск
-
-```
-# Backend
-cd Aziad
-dotnet ef database update
-dotnet run
-
-# Frontend
-cd aziad-premimufrontend
-npm install
-npm run dev
-```
-
-Swagger доступен по адресу: http://localhost:5000/swagger
-
-Frontend доступен по адресу: http://localhost:3000/
