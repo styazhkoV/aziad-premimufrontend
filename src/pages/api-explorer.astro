@@ -1,0 +1,204 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="API Explorer | Aziad">
+  <main class="container">
+    <header style="display:flex;justify-content:space-between;align-items:center;margin:1rem 0">
+      <h1>API Explorer</h1>
+      <a href="/" class="btn-secondary">← Back</a>
+    </header>
+
+    <p>Graphical UI for Customers, Pizzas, Drinks, Orders and Payments. Responses are logged below.</p>
+
+    <section class="admin-card">
+      <h2>Customers (CRUD)</h2>
+      <form id="createCustomerForm" class="crud-form">
+        <div class="form-group">
+          <label for="cName">Name</label>
+          <input id="cName" />
+        </div>
+        <div class="form-group">
+          <label for="cPhone">Phone</label>
+          <input id="cPhone" />
+        </div>
+        <div class="form-group">
+          <label for="cEmail">Email</label>
+          <input id="cEmail" />
+        </div>
+        <div class="form-group">
+          <label for="cAddress">Address</label>
+          <input id="cAddress" />
+        </div>
+        <div style="display:flex;gap:0.5rem">
+          <button id="createCustomerBtn" class="btn-primary" type="button">Create Customer</button>
+          <button id="loadCustomersBtn" class="btn-secondary" type="button">Load Customers</button>
+          <input id="searchPhoneInput" placeholder="Search by phone" />
+          <button id="searchPhoneBtn" class="btn-secondary" type="button">Search</button>
+        </div>
+      </form>
+
+      <div style="margin-top:1rem;overflow:auto">
+        <table id="customersTable" class="crud-table"></table>
+      </div>
+    </section>
+
+    <section class="admin-card" style="margin-top:1.5rem">
+      <h2>Pizzas & Drinks (Menu)</h2>
+      <div style="display:flex;gap:1rem">
+        <div style="flex:1">
+          <h3>Pizzas</h3>
+          <button id="loadPizzasBtn" class="btn-secondary" type="button">Load Pizzas</button>
+          <table id="pizzasTable" class="crud-table"></table>
+        </div>
+        <div style="flex:1">
+          <h3>Drinks</h3>
+          <button id="loadDrinksBtn" class="btn-secondary" type="button">Load Drinks</button>
+          <table id="drinksTable" class="crud-table"></table>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-card" style="margin-top:1.5rem">
+      <h2>Orders</h2>
+      <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
+        <button id="loadOrdersBtn" class="btn-secondary" type="button">Load Orders</button>
+      </div>
+      <table id="ordersTable" class="crud-table"></table>
+    </section>
+
+    <section class="admin-card" style="margin-top:1.5rem">
+      <h2>Payments</h2>
+      <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
+        <button id="loadPaymentsBtn" class="btn-secondary" type="button">Load Payments</button>
+      </div>
+      <table id="paymentsTable" class="crud-table"></table>
+    </section>
+
+    <section class="admin-card" style="margin-top:1.5rem">
+      <h2>API Log</h2>
+      <pre id="apiLog" style="height:220px;overflow:auto;background:#0b1221;color:#dbeafe;padding:1rem;border-radius:6px"></pre>
+    </section>
+  </main>
+
+  <script type="module">
+    import * as api from '../lib/api';
+
+    const apiLog = document.getElementById('apiLog');
+    function log(label, data) {
+      const entry = { label, timestamp: new Date().toISOString(), data };
+      apiLog.textContent = JSON.stringify(entry, null, 2) + '\n\n' + apiLog.textContent;
+      console.log(label, data);
+    }
+
+    // Utility to render simple tables
+    function renderTable(tableEl, columns, rows) {
+      tableEl.innerHTML = '';
+      const thead = document.createElement('thead');
+      thead.innerHTML = '<tr>' + columns.map(c => `<th>${c}</th>`).join('') + '</tr>';
+      tableEl.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        columns.forEach(c => {
+          const td = document.createElement('td');
+          td.innerHTML = r[c] ?? '';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      tableEl.appendChild(tbody);
+    }
+
+    // --- Customers ---
+    document.getElementById('loadCustomersBtn').addEventListener('click', async () => {
+      try {
+        const customers = await api.fetchCustomers();
+        log('fetchCustomers', customers);
+        const rows = customers.map(c => ({ ID: `#${c.id}`, Name: c.name || '', Phone: c.phone || '', Email: c.email || '', Address: c.address || '' }));
+        renderTable(document.getElementById('customersTable'), ['ID','Name','Phone','Email','Address'], rows);
+      } catch (e) { log('fetchCustomers:error', String(e)); }
+    });
+
+    document.getElementById('createCustomerBtn').addEventListener('click', async () => {
+      const payload = {
+        name: document.getElementById('cName').value || null,
+        phone: document.getElementById('cPhone').value || null,
+        email: document.getElementById('cEmail').value || null,
+        address: document.getElementById('cAddress').value || null,
+      };
+      try {
+        const created = await api.createCustomer(payload);
+        log('createCustomer', created);
+        document.getElementById('createCustomerForm').reset();
+        document.getElementById('loadCustomersBtn').click();
+      } catch (e) { log('createCustomer:error', String(e)); }
+    });
+
+    document.getElementById('searchPhoneBtn').addEventListener('click', async () => {
+      const phone = document.getElementById('searchPhoneInput').value.trim();
+      if (!phone) return alert('Enter phone to search');
+      try {
+        const res = await api.fetchCustomerByPhone(phone);
+        log('fetchCustomerByPhone', res);
+        if (!res) alert('Customer not found');
+        else {
+          renderTable(document.getElementById('customersTable'), ['ID','Name','Phone','Email','Address'], [{ ID: `#${res.id}`, Name: res.name||'', Phone: res.phone||'', Email: res.email||'', Address: res.address||'' }]);
+        }
+      } catch (e) { log('fetchCustomerByPhone:error', String(e)); }
+    });
+
+    // --- Pizzas / Drinks ---
+    document.getElementById('loadPizzasBtn').addEventListener('click', async () => {
+      try {
+        const pizzas = await api.fetchPizzas();
+        log('fetchPizzas', pizzas);
+        const rows = pizzas.map(p => ({ ID: `#${p.id}`, Name: p.name||'', Price: p.price, Description: p.description||'' }));
+        renderTable(document.getElementById('pizzasTable'), ['ID','Name','Price','Description'], rows);
+      } catch (e) { log('fetchPizzas:error', String(e)); }
+    });
+
+    document.getElementById('loadDrinksBtn').addEventListener('click', async () => {
+      try {
+        const drinks = await api.fetchDrinks();
+        log('fetchDrinks', drinks);
+        const rows = drinks.map(d => ({ ID: `#${d.id}`, Name: d.name||'', Price: d.price, Description: d.description||'' }));
+        renderTable(document.getElementById('drinksTable'), ['ID','Name','Price','Description'], rows);
+      } catch (e) { log('fetchDrinks:error', String(e)); }
+    });
+
+    // --- Orders ---
+    document.getElementById('loadOrdersBtn').addEventListener('click', async () => {
+      try {
+        const orders = await api.fetchOrders();
+        log('fetchOrders', orders);
+        const rows = orders.map(o => ({ ID: `#${o.id}`, Customer: o.customerId, Date: o.date, Status: o.status, Total: o.total }));
+        renderTable(document.getElementById('ordersTable'), ['ID','Customer','Date','Status','Total'], rows);
+      } catch (e) { log('fetchOrders:error', String(e)); }
+    });
+
+    // --- Payments ---
+    document.getElementById('loadPaymentsBtn').addEventListener('click', async () => {
+      try {
+        const payments = await api.fetchPayments();
+        log('fetchPayments', payments);
+        const rows = payments.map(p => ({ ID: `#${p.id}`, Order: p.orderId, Amount: p.amount, Date: p.date, Status: p.status }));
+        renderTable(document.getElementById('paymentsTable'), ['ID','Order','Amount','Date','Status'], rows);
+      } catch (e) { log('fetchPayments:error', String(e)); }
+    });
+
+    // Auto-load small datasets for convenience
+    document.getElementById('loadPizzasBtn').click();
+    document.getElementById('loadDrinksBtn').click();
+  </script>
+
+  <style>
+    .container { padding: 1.5rem; }
+    .admin-card { background:#fff;border-radius:12px;padding:1rem;margin-bottom:1rem;border:1px solid #eee }
+    .crud-table { width:100%; border-collapse:collapse; }
+    .crud-table th, .crud-table td { padding:0.5rem;border-bottom:1px solid #f3f3f3 }
+    .form-group { margin-bottom:0.5rem }
+    .btn-primary { background:#2563eb;color:#fff;padding:0.5rem 0.75rem;border-radius:6px;border:none }
+    .btn-secondary { background:#eef2ff;padding:0.4rem 0.6rem;border-radius:6px;border:1px solid #dbeafe }
+  </style>
+</Layout>
