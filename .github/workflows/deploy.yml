@@ -16,10 +16,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.12.0   # Astro требует >=22.12.0
+          node-version: 22.12.0   # Astro требует >=22.12.0 (можно сразу 24)
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci   # быстрее и надёжнее чем npm install
 
       - name: Build Astro project
         run: npm run build
@@ -29,5 +29,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          publish_branch: gh-pages
           user_name: github-actions[bot]
-          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          user_email: 41898282+github-actions[bot]@alexsandr.stazhkov@gmail.com
