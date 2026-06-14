@@ -1,8 +1,8 @@
-name: Deploy to GitHub Pages
+name: Deploy Astro Premium Frontend
 
 on:
   push:
-    branches: [ main ]   # или master, если у тебя основная ветка так называется
+    branches: [ main ]   # деплой при пуше в main
 
 jobs:
   build:
@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build project
+      - name: Build Astro project
         run: npm run build
 
       - name: Deploy to GitHub Pages
